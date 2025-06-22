@@ -1,0 +1,8 @@
+streamlit
+pytrends
+beautifulsoup4
+pandas
+requests
+rich
+apscheduler
+altair
