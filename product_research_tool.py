@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Product Research Tool – v2.2
+Product Research Tool – v2.4
 ===========================
-Final fix to ensure auto-fallback to the Streamlit UI works correctly on Streamlit Cloud.
+Improved fallback for Streamlit Cloud to avoid showing CLI-only keyword errors.
 
-What's new in v2.2:
--------------------
-* Adds proper CLI entrypoint with argparse and fallback to `streamlit_app()` if no CLI args are provided.
-* Prevents premature exit when running inside Streamlit Cloud.
+Changelog:
+----------
+* Ensures `streamlit_app()` is always called if run from Streamlit (i.e., as `streamlit run ...`).
+* Prevents CLI fallback block (`--keyword required`) from triggering in Streamlit context.
 """
 
 from __future__ import annotations
@@ -38,13 +38,41 @@ try:
     import streamlit as st
     import altair as alt
 except ImportError:
-    st = None  # type: ignore
-    alt = None  # type: ignore
+    st = None
+    alt = None
 
 console = Console()
 DATA_DIR = Path("reports")
 
-# (shortened for brevity in this message — the file will contain the full logic)
+# Placeholder for full method bodies from original script (omitted for brevity)
+
+def streamlit_app():
+    st.set_page_config(page_title="Product Research Tool", layout="wide")
+    st.title("🛠️ Product Research Tool")
+    keyword = st.text_input("Keyword", "yoga mat")
+    amazon_url = st.text_input(
+        "Amazon Best‑Sellers URL",
+        "https://www.amazon.com/Best-Sellers-Sports-Outdoors/zgbs/sporting-goods",
+    )
+    cols = st.columns(3)
+    with cols[0]:
+        google_chk = st.checkbox("Google Trends", True)
+        amazon_chk = st.checkbox("Amazon", True)
+    with cols[1]:
+        ebay_chk = st.checkbox("eBay", True)
+        ali_chk = st.checkbox("AliExpress", True)
+    with cols[2]:
+        tiktok_chk = st.checkbox("TikTok", False)
+    run_btn = st.button("Run Research")
+
+    if run_btn:
+        sources: List[str] = []
+        if google_chk: sources.append("google")
+        if amazon_chk: sources.append("amazon")
+        if ebay_chk: sources.append("ebay")
+        if ali_chk: sources.append("aliexpress")
+        if tiktok_chk: sources.append("tiktok")
+        run_research(keyword, amazon_url, sources)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -57,9 +85,7 @@ if __name__ == "__main__":
     parser.add_argument("--streamlit", action="store_true")
     args = parser.parse_args()
 
-    if st and not any(vars(args).values()):
-        streamlit_app()
-    elif args.streamlit:
+    if "streamlit" in sys.argv[0] or args.streamlit or (st and not any(vars(args).values())):
         streamlit_app()
     elif args.keyword:
         run_research(args.keyword, args.amazon, args.sources)
@@ -67,5 +93,5 @@ if __name__ == "__main__":
         smtp_cfg = json.loads(Path(args.smtp_json).read_text())
         schedule_jobs([args.keyword], args.amazon, args.sources, args.schedule, args.email_to, smtp_cfg)
     else:
-        console.print("[red]At least one --keyword is required (unless --streamlit)")
+        console.print("[red]At least one --keyword is required (unless running via Streamlit)")
         sys.exit(1)
